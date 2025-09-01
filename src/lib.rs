@@ -93,8 +93,17 @@ impl u8char {
 
     #[inline(always)]
     pub const fn len(self) -> usize {
-        let bs = self.to_byte_array();
-        util::length_by_initial_byte_valid(bs[0])
+        util::length_by_initial_byte_valid(self.first_byte())
+    }
+
+    #[inline(always)]
+    pub const fn is_ascii(self) -> bool {
+        self.first_byte() < 0x80
+    }
+
+    #[inline(always)]
+    pub const fn first_byte(self) -> u8 {
+        self.to_byte_array()[0]
     }
 
     #[inline]
@@ -181,10 +190,129 @@ impl AsRef<str> for u8char {
     }
 }
 
+impl core::borrow::Borrow<str> for u8char {
+    #[inline(always)]
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl AsRef<[u8]> for u8char {
     #[inline(always)]
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl From<char> for u8char {
+    #[inline(always)]
+    fn from(value: char) -> u8char {
+        u8char::from_char(value)
+    }
+}
+
+impl Into<char> for u8char {
+    #[inline(always)]
+    fn into(self) -> char {
+        self.to_char()
+    }
+}
+
+impl core::cmp::PartialEq<str> for u8char {
+    #[inline(always)]
+    fn eq(&self, other: &str) -> bool {
+        self.as_str().eq(other)
+    }
+}
+
+impl core::cmp::PartialOrd for u8char {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.as_str().partial_cmp(other.as_str())
+    }
+
+    #[inline(always)]
+    fn lt(&self, other: &Self) -> bool {
+        self.as_str().lt(other.as_str())
+    }
+
+    #[inline(always)]
+    fn le(&self, other: &Self) -> bool {
+        self.as_str().le(other.as_str())
+    }
+
+    #[inline(always)]
+    fn gt(&self, other: &Self) -> bool {
+        self.as_str().gt(other.as_str())
+    }
+
+    #[inline(always)]
+    fn ge(&self, other: &Self) -> bool {
+        self.as_str().ge(other.as_str())
+    }
+}
+
+impl core::cmp::PartialOrd<str> for u8char {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &str) -> Option<core::cmp::Ordering> {
+        self.as_str().partial_cmp(other)
+    }
+
+    #[inline(always)]
+    fn lt(&self, other: &str) -> bool {
+        self.as_str().lt(other)
+    }
+
+    #[inline(always)]
+    fn le(&self, other: &str) -> bool {
+        self.as_str().le(other)
+    }
+
+    #[inline(always)]
+    fn gt(&self, other: &str) -> bool {
+        self.as_str().gt(other)
+    }
+
+    #[inline(always)]
+    fn ge(&self, other: &str) -> bool {
+        self.as_str().ge(other)
+    }
+}
+
+impl core::cmp::Ord for u8char {
+    #[inline(always)]
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.as_str().cmp(other.as_str())
+    }
+}
+
+impl core::hash::Hash for u8char {
+    #[inline(always)]
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
+}
+
+impl core::ops::Deref for u8char {
+    type Target = str;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl core::fmt::Display for u8char {
+    #[inline(always)]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.to_char().fmt(f)
+    }
+}
+
+impl core::fmt::Debug for u8char {
+    #[inline(always)]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.to_char().fmt(f)
     }
 }
 
