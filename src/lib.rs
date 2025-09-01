@@ -111,6 +111,16 @@ impl u8char {
         unsafe { core::str::from_utf8_unchecked(&self.as_bytes()) }
     }
 
+    #[inline(always)]
+    pub const fn as_mut_str(&mut self) -> &mut str {
+        let len = self.len();
+        let bs = unsafe {
+            let bs: &mut [u8; 4] = core::mem::transmute(self);
+            core::slice::from_raw_parts_mut(bs.as_mut_ptr(), len)
+        };
+        unsafe { core::str::from_utf8_unchecked_mut(bs) }
+    }
+
     /// Returns a pointer to the first byte of the character's UTF-8
     /// representation. The pointer is valid only as long as the reference
     /// it was created from remains valid.
@@ -120,10 +130,61 @@ impl u8char {
         &self as *const _ as *const u8
     }
 
+    pub const fn to_char(self) -> char {
+        let bs = self.to_byte_array();
+        let b0 = bs[0];
+        if b0 < 0x80 {
+            return b0 as char; // fast path for ASCII
+        }
+
+        // The rest of this is based on standard library's
+        // `core/src/str/validations.rs`, and particularly `fn next_code_point`.
+
+        // Mask of the data portion of a continuation byte.
+        const CONT_MASK: u8 = 0b0011_1111;
+        const fn do_first_byte(byte: u8, width: u32) -> u32 {
+            (byte & (0x7F >> width)) as u32
+        }
+        const fn do_cont_byte(ch: u32, byte: u8) -> u32 {
+            (ch << 6) | (byte & CONT_MASK) as u32
+        }
+
+        let init = do_first_byte(b0, 2);
+        let b1 = bs[1];
+        let mut cv = do_cont_byte(init, b1);
+        if b0 >= 0xe0 {
+            let b2 = bs[2];
+            let next = do_cont_byte((b1 & CONT_MASK) as u32, b2);
+            cv = (init << 12) | next;
+            if b0 >= 0xf0 {
+                let b3 = bs[3];
+                cv = ((init & 7) << 18) | do_cont_byte(next, b3);
+            }
+        }
+        debug_assert!(char::from_u32(cv).is_some());
+        // Safety: u8char always has valid UTF-8 in 0..len.
+        unsafe { char::from_u32_unchecked(cv) }
+    }
+
     /// Interprets the value as an array of four bytes. Bytes beyond the
     /// reported length of the value are zero.
+    #[inline(always)]
     pub(crate) const fn to_byte_array(self) -> [u8; 4] {
         unsafe { core::mem::transmute(self) }
+    }
+}
+
+impl AsRef<str> for u8char {
+    #[inline(always)]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl AsRef<[u8]> for u8char {
+    #[inline(always)]
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
     }
 }
 

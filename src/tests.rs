@@ -37,6 +37,18 @@ fn from_char() {
 }
 
 #[test]
+fn char_roundtrip() {
+    for cp in 0..=0x10FFF {
+        let Some(input) = char::from_u32(cp) else {
+            continue;
+        };
+        let uc = u8char::from_char(input);
+        let got = uc.to_char();
+        assert_eq!(input, got, "U+{cp:04X} did not survive round-trip");
+    }
+}
+
+#[test]
 fn unstable_niches_value_range() {
     // This is here to confirm the value ranges we use when the unstable_niches
     // feature is available, which tell rustc it's allowed to use values outside
