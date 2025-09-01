@@ -1,0 +1,9 @@
+[package]
+edition = "2024"
+name = "u8char"
+version = "0.1.0"
+
+[features]
+unstable_niches = []
+
+[dependencies]
