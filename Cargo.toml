@@ -1,6 +1,9 @@
 [package]
+description = "An alternative to the char type that uses UTF-8 as its in-memory representation."
 edition = "2024"
+license = "MIT"
 name = "u8char"
+repository = "https://github.com/apparentlymart/rust-u8char"
 version = "0.1.0"
 
 [features]
