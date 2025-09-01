@@ -29,6 +29,10 @@ fn from_char() {
                 want: ([0xe2, 0x9d, 0x9e, 0x00], 3),
             },
             TableTest {
+                input: '\u{FFFD}',
+                want: ([0xef, 0xbf, 0xbd, 0x00], 3),
+            },
+            TableTest {
                 input: '\u{1FBC6}',
                 want: ([0xf0, 0x9f, 0xaf, 0x86], 4),
             },

@@ -1,3 +1,7 @@
+//! Additional helper functions that are used in the implementation of
+//! [`crate::u8char`] and exported in case they are useful for "off-menu"
+//! uses of that type, such as when using unsafe code.
+
 /// Determines the expected encoded length of a unicode value, in bytes,
 /// based on its initial byte.
 ///

@@ -1,19 +1,33 @@
+//! `u8char` provides the type [`u8char`], which is similar to [`char`] but
+//! represented internally as UTF-8 to allow lower-cost usage in conjunction
+//! with [`str`] and [`String`].
+//!
+//! # Features
+//!
+//! This package currently supports the feature `unstable_niches`, which is
+//! disabled by default. This can be enabled only on nightly builds of Rust
+//! and uses some perma-unstable features to try to make `Option<u8char>` have
+//! the same size as `u8char`. Without this feature `Option<u8char>` will be
+//! larger than `u8char`, whereas the Rust compiler knows that built-in `char`
+//! only stores valid Unicode scalar values and `Option<char>` has the same
+//! size as `char`.
 #![cfg_attr(
     feature = "unstable_niches",
     allow(internal_features),
     feature(rustc_attrs)
 )]
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(any(test, doc)), no_std)]
 
 pub mod util;
 
-/// Similar to `char` in that it represents a Unicode scalar value, but uses
-/// valid, canonical UTF-8 as the in-memory representation, and so it can be
-/// converted more cheaply from the prefix of a `str` and can be interpreted
-/// as a single-character `str` without re-encoding.
+/// A representation of a Unicode scalar value that has the same representation
+/// as if the same scalar value were used as part of a [`str`].
 ///
-/// Has the same size and alignment as `char`, but _does not_ have the same
-/// representation.
+/// This type can represent all of the same values that [`char`] can represent,
+/// but does so using one to four UTF-8 bytes instead of directly as a [`u32`].
+///
+/// This type has the same size and alignment as `char`, but it does not have
+/// the same representation.
 #[repr(transparent)]
 #[cfg_attr(
     feature = "unstable_niches",
@@ -91,21 +105,25 @@ impl u8char {
         (Some(ret), b)
     }
 
+    /// Returns the length of the UTF-8 encoding of the character in bytes.
     #[inline(always)]
     pub const fn len(self) -> usize {
         util::length_by_initial_byte_valid(self.first_byte())
     }
 
+    /// Returns true if the character is in the ASCII range, or false otherwise.
     #[inline(always)]
     pub const fn is_ascii(self) -> bool {
         self.first_byte() < 0x80
     }
 
+    /// Returns the first byte of the UTF-8 encoding of the character.
     #[inline(always)]
     pub const fn first_byte(self) -> u8 {
         self.to_byte_array()[0]
     }
 
+    /// Returns a byte slice covering the UTF-8 encoding of the character.
     #[inline]
     pub const fn as_bytes(&self) -> &[u8] {
         let len = self.len();
@@ -115,11 +133,13 @@ impl u8char {
         }
     }
 
+    /// Returns a reference to a `str` representation of the character.
     #[inline(always)]
     pub const fn as_str(&self) -> &str {
         unsafe { core::str::from_utf8_unchecked(&self.as_bytes()) }
     }
 
+    /// Returns a mutable reference to a `str` representation of the character.
     #[inline(always)]
     pub const fn as_mut_str(&mut self) -> &mut str {
         let len = self.len();
@@ -139,6 +159,11 @@ impl u8char {
         &self as *const _ as *const u8
     }
 
+    /// Converts to the primitive type [`char`].
+    ///
+    /// The built-in `char` type uses a different representation, so this
+    /// operation requires conversion. Staying in the world of UTF-8 -- using
+    /// `str` in combination with `u8char` -- avoids these conversions.
     pub const fn to_char(self) -> char {
         let bs = self.to_byte_array();
         let b0 = bs[0];
@@ -184,6 +209,7 @@ impl u8char {
 }
 
 impl AsRef<str> for u8char {
+    /// Equivalent to [`Self::as_str`].
     #[inline(always)]
     fn as_ref(&self) -> &str {
         self.as_str()
@@ -191,6 +217,7 @@ impl AsRef<str> for u8char {
 }
 
 impl core::borrow::Borrow<str> for u8char {
+    /// Equivalent to [`Self::as_str`].
     #[inline(always)]
     fn borrow(&self) -> &str {
         self.as_str()
@@ -198,12 +225,14 @@ impl core::borrow::Borrow<str> for u8char {
 }
 
 impl AsRef<[u8]> for u8char {
+    /// Equivalent to [`Self::as_bytes`].
     #[inline(always)]
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
+/// Equivalent to [`Self::from_char`].
 impl From<char> for u8char {
     #[inline(always)]
     fn from(value: char) -> u8char {
@@ -211,6 +240,7 @@ impl From<char> for u8char {
     }
 }
 
+/// Equivalent to [`Self::to_char`].
 impl Into<char> for u8char {
     #[inline(always)]
     fn into(self) -> char {
@@ -225,6 +255,7 @@ impl core::cmp::PartialEq<str> for u8char {
     }
 }
 
+/// The ordering of [`u8char`] values is the same as the corresponding [`str`].
 impl core::cmp::PartialOrd for u8char {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
@@ -287,6 +318,8 @@ impl core::cmp::Ord for u8char {
 }
 
 impl core::hash::Hash for u8char {
+    /// Hashing for [`u8char`] is delegated to the [`core::hash::Hash`]
+    /// implementation of [`str`].
     #[inline(always)]
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.as_str().hash(state);
@@ -296,9 +329,19 @@ impl core::hash::Hash for u8char {
 impl core::ops::Deref for u8char {
     type Target = str;
 
+    /// Equivalent to [`Self::as_str`], giving access to all of the methods
+    /// supported for shared references to [`str`].
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
         self.as_str()
+    }
+}
+
+impl core::ops::DerefMut for u8char {
+    /// Equivalent to [`Self::as_mut_str`], giving access to all of the methods
+    /// supported for mutable references to [`str`].
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_str()
     }
 }
 
