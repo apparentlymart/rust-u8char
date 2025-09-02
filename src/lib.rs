@@ -18,7 +18,10 @@
 )]
 #![cfg_attr(not(any(test, doc)), no_std)]
 
+mod traits;
 pub mod util;
+
+pub use traits::*;
 
 /// A representation of a Unicode scalar value that has the same representation
 /// as if the same scalar value were used as part of a [`str`].

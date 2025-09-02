@@ -104,6 +104,49 @@ fn len_by_first_byte_consistent() {
     }
 }
 
+#[test]
+fn str_u8char_iter() {
+    use crate::AsU8Chars;
+
+    static TESTS: &[TableTest<&str, &[u8char]>] = &[
+        TableTest {
+            input: "",
+            want: &[],
+        },
+        TableTest {
+            input: "\0",
+            want: &[u8char::NULL],
+        },
+        TableTest {
+            input: "\0\n\u{00A4}\u{275D}\u{275E}\u{FFFD}\u{1FBC6}",
+            want: &[
+                u8char::from_char('\0'),
+                u8char::from_char('\n'),
+                u8char::from_char('\u{00A4}'),
+                u8char::from_char('\u{275D}'),
+                u8char::from_char('\u{275E}'),
+                u8char::from_char('\u{FFFD}'),
+                u8char::from_char('\u{1FBC6}'),
+            ],
+        },
+    ];
+
+    let mut fails = 0;
+    for test in TESTS {
+        let got: Vec<_> = test.input.u8chars().collect();
+        if &got != test.want {
+            eprintln!("- test failure");
+            eprintln!("    input: {:02x?}", test.input);
+            eprintln!("    got:   {:02x?}", got);
+            eprintln!("    want:  {:02x?}", test.want);
+            fails += 1;
+        }
+    }
+    if fails != 0 {
+        panic!("{fails} tests failed");
+    }
+}
+
 struct TableTest<In, Out> {
     pub input: In,
     pub want: Out,
