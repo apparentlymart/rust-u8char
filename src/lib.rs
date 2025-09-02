@@ -18,10 +18,13 @@
 )]
 #![cfg_attr(not(any(test, doc)), no_std)]
 
+pub mod error;
 mod traits;
 pub mod util;
 
 pub use traits::*;
+
+use crate::error::Utf8Error;
 
 /// A representation of a Unicode scalar value that has the same representation
 /// as if the same scalar value were used as part of a [`str`].
@@ -106,6 +109,48 @@ impl u8char {
             ret
         };
         (Some(ret), b)
+    }
+
+    /// Returns a [`u8char`] representation of the valid UTF-8 sequence at the
+    /// beginning of `buf`, or a [`Utf8Error`] value if there is not a valid
+    /// and complete sequence at the start.
+    ///
+    /// Unless it successfully returns `None` to indicate an empty buffer this
+    /// function always consumes at least one byte from `buf`, possibly
+    /// classifying what it consumed as an error. The error type distinguishes
+    /// between definitely-invald sequences (which could not become valid even
+    /// if more bytes were added) and incomplete prefixes (which could
+    /// potentially become valid if more bytes were added).
+    ///
+    /// A streaming parser should typically handle the `Utf8Error` cases as
+    /// follows:
+    /// - If [`Utf8Error::incomplete_prefix`] returns `Some` then save what
+    ///   was returned in a four-byte "leverovers" buffer and then try to
+    ///   complete parsing from that buffer once more bytes are available.
+    /// - Otherwise, discard the bytes that were consumed and use
+    ///   [`Self::REPLACEMENT_CHAR`] in their place, and then try to restart
+    ///   parsing at the first unconsumed byte.
+    ///
+    /// The second return value is the remainder of the given buffer after
+    /// consuming what was returned in the first value.
+    pub fn from_bytes_prefix(buf: &[u8]) -> (Result<Option<Self>, Utf8Error<'_>>, &[u8]) {
+        let (result, remain) = util::split_bytes_at_first_char(buf);
+        let result = result.map(|s| {
+            if s.is_empty() {
+                return None;
+            }
+            unsafe {
+                // Safety: If split_bytes_at_first_char is correct then we can
+                // assume that the byte representation of `a` is at most four
+                // bytes long and is a valid UTF-8 sequence, and so is
+                // ready to copy directly as a bit pattern for `Self`.
+                let mut ret = Self::NULL;
+                let dst: &mut [u8; 4] = core::mem::transmute(&mut ret);
+                core::ptr::copy_nonoverlapping(s.as_ptr(), dst.as_mut_ptr(), s.len());
+                Some(ret)
+            }
+        });
+        (result, remain)
     }
 
     /// Returns the length of the UTF-8 encoding of the character in bytes.

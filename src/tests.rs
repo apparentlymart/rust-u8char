@@ -1,3 +1,5 @@
+use crate::error::Utf8Error;
+
 use super::*;
 
 #[test]
@@ -105,6 +107,72 @@ fn len_by_first_byte_consistent() {
 }
 
 #[test]
+fn utf8_byte_role() {
+    use util::Utf8ByteRole::*;
+    table_test(
+        |b| util::Utf8ByteRole::for_byte(b),
+        &[
+            TableTest {
+                input: 0x00,
+                want: Begin(1),
+            },
+            TableTest {
+                input: 0x0a,
+                want: Begin(1),
+            },
+            TableTest {
+                input: 0xc2,
+                want: Begin(2),
+            },
+            TableTest {
+                input: 0xe2,
+                want: Begin(3),
+            },
+            TableTest {
+                input: 0xef,
+                want: Begin(3),
+            },
+            TableTest {
+                input: 0xf0,
+                want: Begin(4),
+            },
+            TableTest {
+                input: 0x80,
+                want: Continuation,
+            },
+            TableTest {
+                input: 0x8f,
+                want: Continuation,
+            },
+            TableTest {
+                input: 0x9f,
+                want: Continuation,
+            },
+            TableTest {
+                input: 0xc0,
+                want: Invalid,
+            },
+            TableTest {
+                input: 0xc1,
+                want: Invalid,
+            },
+            TableTest {
+                input: 0xf5,
+                want: Invalid,
+            },
+            TableTest {
+                input: 0xfa,
+                want: Invalid,
+            },
+            TableTest {
+                input: 0xff,
+                want: Invalid,
+            },
+        ],
+    );
+}
+
+#[test]
 fn str_u8char_iter() {
     use crate::AsU8Chars;
 
@@ -135,6 +203,131 @@ fn str_u8char_iter() {
     for test in TESTS {
         let got: Vec<_> = test.input.u8chars().collect();
         if &got != test.want {
+            eprintln!("- test failure");
+            eprintln!("    input: {:02x?}", test.input);
+            eprintln!("    got:   {:02x?}", got);
+            eprintln!("    want:  {:02x?}", test.want);
+            fails += 1;
+        }
+    }
+    if fails != 0 {
+        panic!("{fails} tests failed");
+    }
+}
+
+#[test]
+fn from_bytes_prefix() {
+    // The `split_bytes_at_first_char` covers lots of variations. In this test
+    // we're focused on covering how u8char::from_bytes_prefix translates
+    // the different outcomes.
+    static TESTS: &[TableTest<&[u8], (Result<Option<u8char>, Utf8Error<'_>>, &[u8])>] = &[
+        TableTest {
+            input: b"",
+            want: (Ok(None), b""),
+        },
+        TableTest {
+            input: b"a",
+            want: (Ok(Some(u8char::from_char('a'))), b""),
+        },
+        TableTest {
+            input: b"ab",
+            want: (Ok(Some(u8char::from_char('a'))), b"b"),
+        },
+        TableTest {
+            input: b"\xc2",
+            want: (Err(Utf8Error::new_incomplete(b"\xc2")), b""),
+        },
+        TableTest {
+            input: b"\xff!",
+            want: (Err(Utf8Error::new_invalid(b"\xff")), b"!"),
+        },
+        TableTest {
+            input: b"\xff",
+            want: (Err(Utf8Error::new_invalid(b"\xff")), b""),
+        },
+    ];
+
+    let mut fails = 0;
+    for test in TESTS {
+        let got = u8char::from_bytes_prefix(test.input);
+        if got != test.want {
+            eprintln!("- test failure");
+            eprintln!("    input: {:02x?}", test.input);
+            eprintln!("    got:   {:02x?}", got);
+            eprintln!("    want:  {:02x?}", test.want);
+            fails += 1;
+        }
+    }
+    if fails != 0 {
+        panic!("{fails} tests failed");
+    }
+}
+
+#[test]
+fn split_bytes_at_first_char() {
+    static TESTS: &[TableTest<&[u8], (Result<&str, Utf8Error<'_>>, &[u8])>] = &[
+        TableTest {
+            input: b"",
+            want: (Ok(""), b""),
+        },
+        TableTest {
+            input: b"a",
+            want: (Ok("a"), b""),
+        },
+        TableTest {
+            input: b"ab",
+            want: (Ok("a"), b"b"),
+        },
+        TableTest {
+            input: b"\xff!",
+            want: (Err(Utf8Error::new_invalid(b"\xff")), b"!"),
+        },
+        TableTest {
+            input: b"\xc2",
+            want: (Err(Utf8Error::new_incomplete(b"\xc2")), b""),
+        },
+        TableTest {
+            input: b"\xc2\xa4",
+            want: (Ok("\u{00A4}"), b""),
+        },
+        TableTest {
+            input: b"\xe2\x9d\x9e",
+            want: (Ok("\u{275E}"), b""),
+        },
+        TableTest {
+            input: b"\xe2\x9d",
+            want: (Err(Utf8Error::new_incomplete(b"\xe2\x9d")), b""),
+        },
+        TableTest {
+            input: b"\xe2",
+            want: (Err(Utf8Error::new_incomplete(b"\xe2")), b""),
+        },
+        TableTest {
+            input: b"\xe2\xe2",
+            want: (Err(Utf8Error::new_invalid(b"\xe2")), b"\xe2"),
+        },
+        TableTest {
+            input: b"\xe2\x9d\xe2",
+            want: (Err(Utf8Error::new_invalid(b"\xe2\x9d")), b"\xe2"),
+        },
+        TableTest {
+            input: b"\xe2\x9d\xe2foo",
+            want: (Err(Utf8Error::new_invalid(b"\xe2\x9d")), b"\xe2foo"),
+        },
+        TableTest {
+            input: b"\x80foo",
+            want: (Err(Utf8Error::new_invalid(b"\x80")), b"foo"),
+        },
+        TableTest {
+            input: b"\xc0\x80", // Overlong encoding of U+0000
+            want: (Err(Utf8Error::new_invalid(b"\xc0")), b"\x80"),
+        },
+    ];
+
+    let mut fails = 0;
+    for test in TESTS {
+        let got = util::split_bytes_at_first_char(test.input);
+        if got != test.want {
             eprintln!("- test failure");
             eprintln!("    input: {:02x?}", test.input);
             eprintln!("    got:   {:02x?}", got);
