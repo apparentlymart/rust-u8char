@@ -4,7 +4,7 @@ edition = "2024"
 license = "MIT"
 name = "u8char"
 repository = "https://github.com/apparentlymart/rust-u8char"
-version = "0.2.0"
+version = "0.3.0"
 
 [features]
 unstable_niches = []
