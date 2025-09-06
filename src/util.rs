@@ -77,7 +77,6 @@ pub const fn split_str_at_first_char(s: &str) -> (&str, &str) {
 /// If the given slice is empty then this succeeds with an empty string
 /// and an empty slice.
 pub const fn split_bytes_at_first_char(buf: &[u8]) -> (Result<&str, Utf8Error<'_>>, &[u8]) {
-    extern crate std;
     if buf.is_empty() {
         return (Ok(""), buf);
     }
@@ -138,7 +137,7 @@ impl Utf8ByteRole {
     ///
     /// This function is not well-optimized, since it's here primarily for
     /// error handling and debugging, such as with the return value from
-    /// [`crate::error::Utf8Error::invalid_byte`].
+    /// [`crate::error::Utf8Error::invalid_bytes`].
     pub fn for_byte(b: u8) -> Self {
         if matches!(b, 0xc0 | 0xc1 | 0xf5..=0xff) {
             // These bytes never appear in valid UTF-8, in any position,

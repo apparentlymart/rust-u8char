@@ -1,3 +1,8 @@
+//! UTF-8 parse errors.
+
+/// Describes a series of one or more bytes that don't form a valid UTF-8
+/// sequence, either due to being totally invalid or being a truncation
+/// of a valid UTF-8 sequence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Utf8Error<'a> {
     bytes: &'a [u8],

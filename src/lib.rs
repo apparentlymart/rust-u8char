@@ -19,10 +19,9 @@
 #![cfg_attr(not(any(test, doc)), no_std)]
 
 pub mod error;
-mod traits;
+pub mod iter;
+pub mod stream;
 pub mod util;
-
-pub use traits::*;
 
 use crate::error::Utf8Error;
 
@@ -418,6 +417,15 @@ const _: () = {
         panic!("unstable_niches unable to make u8char same size as Option<u8char>")
     }
 };
+
+/// Convenience trait for obtaining an iterator over the characters of a
+/// `str` as [`u8char`].
+pub trait AsU8Chars {
+    type Iter: Iterator<Item = u8char>;
+
+    /// Returns an iterator over the UTF-8 characters in the value.
+    fn u8chars(self) -> Self::Iter;
+}
 
 #[cfg(test)]
 mod tests;
